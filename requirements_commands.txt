@@ -1,0 +1,4 @@
+pip install -U "autogen-agentchat" "autogen-ext[openai]" #it doesnt need to be for now, it can be updated as off now I currently started!
+pip install "autogen-agentchat" "autogen-ext[magentic-one,openai]"
+playwright install --with-deps chromium
+pip install sse-starlette

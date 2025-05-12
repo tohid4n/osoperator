@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+  <title>Chat App</title>
+</head>
+<body>
+  <div id="layout">
+    <nav id="sidebar">
+      <h2>Chat</h2>
+      <ul id="conversations"></ul>
+      <div id="input-container">
+        <input id="new-task" placeholder="Type your prompt…" />
+        <button id="send-btn">Send</button>
+      </div>
+    </nav>
+    <main id="content">
+      <section id="result-output" class="pane">
+        <!-- Final answer appears here -->
+      </section>
+    </main>
+  </div>
+  <script src="renderer.js"></script>
+</body>
+</html>
