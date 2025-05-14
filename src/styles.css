@@ -74,4 +74,28 @@ body, html {
     font-size: .85rem;
     white-space: pre-wrap;
   }
+ 
+  
+
+/* ... keep your existing rules above ... */
+
+.feedback-input {
+    width: calc(100% - 1rem);
+    margin: 0.5rem;
+    padding: 0.4rem;
+    font-size: 0.85rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+
+  
+
+.feedback-ui input.feedback-input {
+    width: calc(100% - 1rem);
+    margin: 0.5rem 0;
+    padding: 0.4rem;
+    font-size: 0.85rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
   

@@ -1,70 +1,94 @@
-console.log('Renderer loaded');
-const convList   = document.getElementById('conversations');
-const input      = document.getElementById('new-task');
-const btn        = document.getElementById('send-btn');
-const resultPane = document.getElementById('result-output');
+// File: src/renderer.js
+console.log("Renderer loaded");
+
+const convList   = document.getElementById("conversations");
+const inputEl    = document.getElementById("new-task");
+const sendBtn    = document.getElementById("send-btn");
+const resultPane = document.getElementById("result-output");
+
+let activeWs = null;
 
 async function runChat() {
-  const task = input.value.trim();
+  const task = inputEl.value.trim();
   if (!task) return;
 
-  // 1) Create conversation item
-  const li = document.createElement('li');
-  li.classList.add('conversation-item');
+  // 1) Build conversation item with spinner + logs + feedback
+  const li = document.createElement("li");
+  li.classList.add("conversation-item");
+  const ts = Date.now();
   li.innerHTML = `
     <div class="prompt-text">${task}</div>
-    <details>
+    <div class="spinner" id="spinner-${ts}">⏳</div>
+    <details open>
       <summary>Show logs</summary>
-      <div class="logs-container" id="logs-${Date.now()}"></div>
+      <div class="logs-container" id="logs-${ts}"></div>
     </details>
-  `;
+    <div class="feedback-container">
+      <input
+        type="text"
+        id="feedback-${ts}"
+        class="feedback-input"
+        placeholder="Type here and press Enter…"
+      />
+    </div>`;
   convList.appendChild(li);
 
-  // Grab the newly created logs container
-  const logsEl    = li.querySelector('.logs-container');
-  const summaryEl = li.querySelector('summary');
+  const spinnerEl  = document.getElementById(`spinner-${ts}`);
+  const logsEl     = document.getElementById(`logs-${ts}`);
+  const feedbackEl = document.getElementById(`feedback-${ts}`);
+  resultPane.textContent = "";
 
-  // 2) Clear result pane
-  resultPane.textContent = '';
+  // 2) Close any existing WS
+  if (activeWs && activeWs.readyState < 2) activeWs.close();
 
-  // 3) Fetch SSE stream
-  const url      = `http://127.0.0.1:8000/chat/stream?task=${encodeURIComponent(task)}`;
-  const response = await fetch(url);
-  const reader   = response.body.getReader();
-  const decoder  = new TextDecoder();
-  let lastEvent = null;
+  // 3) Open new WebSocket
+  const ws = new WebSocket("ws://127.0.0.1:8000/ws/chat");
+  activeWs = ws;
 
-  // 4) Read loop
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value);
-    chunk.split(/\r?\n/).forEach(line => {
-      if (line.startsWith('event: ')) {
-        lastEvent = line.replace('event: ', '').trim();
-      }
-      else if (line.startsWith('data: ')) {
-        const data = line.replace('data: ', '');
-        if (lastEvent === 'log') {
-          // append to logs
-          logsEl.textContent += data + '\n';
-        }
-        else if (lastEvent === 'result') {
-          // show final result
-          resultPane.textContent += data;
-        }
-      }
-    });
-  }
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ task }));
+    logsEl.innerHTML += `<div class="log-entry">🔗 Connected & task sent.</div>`;
+  };
+  ws.onerror = err => {
+    logsEl.innerHTML += `<div class="error">WS error: ${err}</div>`;
+    spinnerEl.textContent = "❌";
+  };
+  ws.onclose = () => {
+    logsEl.innerHTML += `<div class="log-entry">🔒 Connection closed.</div>`;
+  };
 
-  // 5) If logs exist, leave summary clickable—otherwise hide it
-  if (!logsEl.textContent.trim()) {
-    summaryEl.style.display = 'none';
-  }
+  // 4) Handle incoming messages
+  ws.onmessage = event => {
+    const msg = JSON.parse(event.data);
 
-  input.value = '';
+    // On first log or prompt/result, hide spinner
+    if (spinnerEl) { spinnerEl.style.display = "none"; }
+
+    if (msg.type === "log") {
+      logsEl.innerHTML += `<div class="log-entry">${msg.data}</div>`;
+    }
+    else if (msg.type === "prompt") {
+      // Bold prompt is already HTML bolded
+      logsEl.innerHTML += `<div class="prompt-entry">${msg.prompt}</div>`;
+      feedbackEl.focus();
+    }
+    else if (msg.type === "result") {
+      resultPane.innerHTML += `<div class="result-entry">${msg.data}</div>`;
+    }
+  };
+
+  // 5) Feedback input always visible
+  feedbackEl.addEventListener("keypress", e => {
+    if (e.key === "Enter" && feedbackEl.value.trim()) {
+      const content = feedbackEl.value.trim();
+      ws.send(JSON.stringify({ content }));
+      logsEl.innerHTML += `<div class="user-response">You: ${content}</div>`;
+      feedbackEl.value = "";
+    }
+  });
+
+  inputEl.value = "";
 }
 
-// event bindings
-input.addEventListener('keypress', e => { if (e.key === 'Enter') runChat(); });
-btn.addEventListener('click', runChat);
+inputEl.addEventListener("keypress", e => { if (e.key === "Enter") runChat(); });
+sendBtn.addEventListener("click", runChat);
